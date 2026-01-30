@@ -1,1 +1,2 @@
-{"question": "Introduce Alibaba web agent ", "answer": ""}
+{"question": "By using internal_retrieval tool, retrieve the knowledge from internal knowledge base about GLAIR", "answer": ""}
+{"question": "Fetch all of my PR and Analyze the PR, use connector_search tool with connector_id=github to fetch the PR", "answer": ""}
