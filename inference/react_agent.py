@@ -5,6 +5,7 @@ from typing import Dict, Iterator, List, Literal, Optional, Tuple, Union
 from qwen_agent.llm.schema import Message
 from qwen_agent.utils.utils import build_text_completion_prompt
 from openai import OpenAI, APIError, APIConnectionError, APITimeoutError
+from qwen_agent.utils.tokenization_qwen import count_tokens
 from transformers import AutoTokenizer 
 from datetime import datetime
 from qwen_agent.agents.fncall_agent import FnCallAgent
@@ -22,6 +23,8 @@ from tool_scholar import *
 from tool_python import *
 from tool_search import *
 from tool_visit import *
+from tool_retrieval import *
+from tool_connector import *
 
 OBS_START = '<tool_response>'
 OBS_END = '\n</tool_response>'
@@ -34,6 +37,8 @@ TOOL_CLASS = [
     Visit(),
     Search(),
     PythonInterpreter(),
+    Retrieval(),
+    ConnectorSearch(),
 ]
 TOOL_MAP = {tool.name: tool for tool in TOOL_CLASS}
 
@@ -57,9 +62,14 @@ class MultiTurnReactAgent(FnCallAgent):
         return "<think>" in content and "</think>" in content
     
     def call_server(self, msgs, planning_port, max_tries=10):
-        
-        openai_api_key = "EMPTY"
-        openai_api_base = f"http://127.0.0.1:{planning_port}/v1"
+
+        # OpenRouter
+        # openai_api_key = os.getenv("OPENROUTER_API_KEY", "EMPTY")
+        # openai_api_base = "https://openrouter.ai/api/v1"
+
+        # Self-hosted
+        openai_api_key = os.getenv("SELFHOSTED_TONGYI_API_KEY", "EMPTY")
+        openai_api_base="https://selfhosted-llm-gdplabs-deep-research.obrol.id/v1"
 
         client = OpenAI(
             api_key=openai_api_key,
@@ -110,11 +120,12 @@ class MultiTurnReactAgent(FnCallAgent):
         return f"vllm server error!!!"
 
     def count_tokens(self, messages):
-        tokenizer = AutoTokenizer.from_pretrained(self.llm_local_path) 
-        full_prompt = tokenizer.apply_chat_template(messages, tokenize=False)
-        tokens = tokenizer(full_prompt, return_tensors="pt")
-        token_count = len(tokens["input_ids"][0])
+        full_text = ""
+        for msg in messages:
+            content = msg.get("content", "") if isinstance(msg, dict) else str(msg)
+            full_text += content + "\n"
         
+        token_count = count_tokens(full_text)
         return token_count
 
     def _run(self, data: str, model: str, **kwargs) -> List[List[Message]]:
